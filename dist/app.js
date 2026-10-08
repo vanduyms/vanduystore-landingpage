@@ -308,13 +308,15 @@ $("#contact-form").addEventListener("submit", async (event) => {
   $("#form-status").textContent = t("Đang gửi yêu cầu…", "Sending your inquiry…");
   $("#copy-request").hidden = true;
   $("#email-fallback").hidden = true;
-  const body = { interest: $("#interest").value, email: $("#reply-email").value.trim(), idea: $("#idea").value.trim(), website: $("#website-field").value };
+  const body = { language, interest: $("#interest").value, email: $("#reply-email").value.trim(), idea: $("#idea").value.trim(), website: $("#website-field").value };
   const fallback = `mailto:admin@vanduy.store?subject=${encodeURIComponent("Website inquiry")}&body=${encodeURIComponent(inquiry())}`;
   try {
-    const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(18000) });
+    const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
     const result = await response.json();
     if (!response.ok || result.ok !== true) throw new Error("delivery_failed");
-    $("#form-status").textContent = t("Yêu cầu đã được tiếp nhận để gửi đến Vanduy. Cảm ơn bạn!", "Your inquiry has been accepted for delivery to Vanduy. Thank you!");
+    $("#form-status").textContent = result.confirmationSent
+      ? t("Đã tiếp nhận yêu cầu. Email xác nhận đang được gửi đến bạn.", "Inquiry received. A confirmation email is on its way.")
+      : t("Đã tiếp nhận yêu cầu. Email xác nhận chưa gửi được; bạn không cần gửi lại yêu cầu.", "Inquiry received. The confirmation email could not be sent; no need to submit again.");
     $("#contact-form").reset();
   } catch {
     $("#form-status").textContent = t("Chưa gửi được. Bạn có thể thử lại hoặc gửi bằng ứng dụng email.", "Couldn’t send. Try again or use your email app.");

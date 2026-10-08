@@ -1,3 +1,4 @@
+import {renderEmail} from './email-templates.mjs';
 const recipient = 'admin@vanduy.store';
 const interests = {ai:'AI & Automation',web:'Website & Web App',manage:'Business Software',other:'New idea'};
 const respond = (status, code) => Response.json({ok:status===200,code},{status,headers:{'Cache-Control':'no-store'}});
@@ -16,11 +17,20 @@ export async function handleContact(request, env, send = fetch) {
   try {
     const response = await send(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/email/sending/send`,{
       method:'POST',headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(12000),
-      body:JSON.stringify({to:recipient,from:env.EMAIL_FROM,subject:`Website inquiry — ${interests[interest]}`,text:`New inquiry from vanduy.store\n\nReply to: ${email}\nInterest: ${interests[interest]}\n\n${idea.trim()}`,reply_to:email})
+      body:JSON.stringify({to:recipient,from:env.EMAIL_FROM,...renderEmail({audience:'admin',language:data.language,interest,email,idea}),reply_to:email})
     });
     const result=await response.json();
     const accepted=[...(result.result?.delivered||[]),...(result.result?.queued||[])].includes(recipient);
     if(!response.ok || result.success!==true || !accepted || result.result?.permanent_bounces?.includes(recipient)) return respond(502,'delivery_failed');
-    return respond(200,'accepted');
+    let confirmationSent = false;
+    try {
+      const confirmation=await send(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/email/sending/send`,{
+        method:'POST',headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(12000),
+        body:JSON.stringify({to:email,from:env.EMAIL_FROM,...renderEmail({language:data.language,interest,email,idea}),reply_to:recipient})
+      });
+      const delivery=await confirmation.json();
+      confirmationSent=confirmation.ok && delivery.success===true && [...(delivery.result?.delivered||[]),...(delivery.result?.queued||[])].includes(email) && !delivery.result?.permanent_bounces?.includes(email);
+    } catch { /* The admin inquiry was accepted; do not ask the customer to submit it again. */ }
+    return Response.json({ok:true,code:'accepted',confirmationSent},{headers:{'Cache-Control':'no-store'}});
   }catch{return respond(502,'delivery_failed')}
 }
