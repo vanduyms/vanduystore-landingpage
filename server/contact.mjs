@@ -16,7 +16,7 @@ export async function handleContact(request, env, send = fetch) {
   try {
     const response = await send(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/email/sending/send`,{
       method:'POST',headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(12000),
-      body:JSON.stringify({to:recipient,from:env.EMAIL_FROM,subject:`Website inquiry — ${interests[interest]}`,text:`New inquiry from vanduy.store\n\nReply to: ${email}\nInterest: ${interests[interest]}\n\n${idea.trim()}`,headers:{'Reply-To':email}})
+      body:JSON.stringify({to:recipient,from:env.EMAIL_FROM,subject:`Website inquiry — ${interests[interest]}`,text:`New inquiry from vanduy.store\n\nReply to: ${email}\nInterest: ${interests[interest]}\n\n${idea.trim()}`,reply_to:email})
     });
     const result=await response.json();
     const accepted=[...(result.result?.delivered||[]),...(result.result?.queued||[])].includes(recipient);
