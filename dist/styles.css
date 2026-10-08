@@ -1421,3 +1421,26 @@ h2 {
 @media(max-width:1050px){.nav nav{gap:15px}.footer-grid{gap:24px;grid-template-columns:1.1fr 1fr 1fr 1.2fr}}
 @media(max-width:800px){.delivery-grid{gap:24px}.delivery-item{padding-right:0}.delivery-item h3{font-size:15px}.footer-grid{grid-template-columns:1fr 1fr;gap:30px}.footer-base>span:nth-child(2){display:none}}
 @media(max-width:580px){.delivery-grid{grid-template-columns:1fr;gap:27px}.delivery-item h3{font-size:17px;margin-top:12px}.delivery-section{padding-bottom:0}.footer-grid{gap:25px 20px}.footer-intro{grid-column:1/-1}.footer-grid>div:last-child{grid-column:1/-1}.footer-grid>div:last-child p{max-width:none}.footer-base{font-size:10px}.privacy-note{font-size:12px}.site-footer{padding-top:30px}}
+
+/* Keep the inquiry form focus subtle and visible against the blue panel. */
+.contact-panel select:focus,
+.contact-panel textarea:focus {
+  outline: none;
+  border-color: #d7e2ff;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 12%);
+}
+.contact-panel select,
+.contact-panel textarea {
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .contact-panel select,
+  .contact-panel textarea { transition: none; }
+}
+@media (forced-colors: active) {
+  .contact-panel select:focus,
+  .contact-panel textarea:focus {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
