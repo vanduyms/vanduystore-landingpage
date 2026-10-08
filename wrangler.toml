@@ -1,4 +1,5 @@
-name = "vanduy-store"
+# wrangler.toml
+name = 'vanduystore-landingpage'
 main = "dist/server/index.js"
 compatibility_date = "2026-10-08"
 workers_dev = true
