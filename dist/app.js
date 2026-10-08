@@ -174,6 +174,7 @@ function setLanguage(next) {
   } catch {}
   $("#form-status").hidden = true;
   if (sending) $("#contact-form button[type=submit]").textContent = t("Đang gửi…", "Sending…");
+  window.vanduyVerification?.setLanguage(next);
   renderDemo();
 }
 function renderDemo() {
@@ -295,6 +296,7 @@ function inquiry() {
 $("#contact-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (sending) return;
+  if (!window.vanduyVerification?.token) { window.vanduyVerification?.showRequired(); return; }
   if (!$("#idea").value.trim()) {
     $("#idea").setCustomValidity(t("Hãy nhập ý tưởng của bạn.", "Please enter your idea."));
     $("#idea").reportValidity(); return;
@@ -308,10 +310,10 @@ $("#contact-form").addEventListener("submit", async (event) => {
   $("#form-status").textContent = t("Đang gửi yêu cầu…", "Sending your inquiry…");
   $("#copy-request").hidden = true;
   $("#email-fallback").hidden = true;
-  const body = { language, interest: $("#interest").value, email: $("#reply-email").value.trim(), idea: $("#idea").value.trim(), website: $("#website-field").value };
+  const body = { turnstileToken: window.vanduyVerification.token, language, interest: $("#interest").value, email: $("#reply-email").value.trim(), idea: $("#idea").value.trim(), website: $("#website-field").value };
   const fallback = `mailto:admin@vanduy.store?subject=${encodeURIComponent("Website inquiry")}&body=${encodeURIComponent(inquiry())}`;
   try {
-    const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+    const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(40000) });
     const result = await response.json();
     if (!response.ok || result.ok !== true) throw new Error("delivery_failed");
     $("#form-status").textContent = result.confirmationSent
@@ -324,7 +326,7 @@ $("#contact-form").addEventListener("submit", async (event) => {
     $("#email-fallback").hidden = false;
     $("#copy-request").hidden = false;
   } finally {
-    sending = false; button.disabled = false;
+    sending = false; window.vanduyVerification?.reset(); button.disabled = true;
     button.textContent = t("Gửi yêu cầu tư vấn", "Send inquiry");
     $("#contact-form").setAttribute("aria-busy", "false");
   }

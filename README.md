@@ -45,3 +45,11 @@ Kiểm tra backend: `node tests/contact.test.mjs`. Các test dùng provider gi�
 ## Mẫu email
 
 `server/email-templates.mjs` chứa mẫu HTML dạng bảng với CSS inline và bản text thuần, dành cho email thông báo admin và xác nhận khách. Xem mẫu tại `output/emails/`. Khách nhận mẫu Việt/Anh theo ngôn ngữ chọn trên website; email xác nhận chỉ gửi sau khi email admin được provider tiếp nhận. Nếu xác nhận thất bại, không yêu cầu gửi lại form để tránh trùng yêu cầu. Các phần nhập từ khách được escape trước khi đưa vào HTML. Không cam kết thời gian phản hồi trong email.
+
+## Turnstile
+
+Thêm `TURNSTILE_SITE_KEY` và `TURNSTILE_SECRET_KEY` trong `.env.local`, và runtime của Sites. Site key là công khai; secret chỉ nằm ở server. Widget dùng action `contact`; endpoint xác minh qua Cloudflare Siteverify và kiểm tra hostname/action trước khi gửi cả hai email. Không có chế độ bỏ qua nếu thiếu secret hoặc dịch vụ xác minh lỗi. Token được reset sau mỗi lần gửi, khi hết hạn và khi đổi ngôn ngữ.
+
+Trong Cloudflare Turnstile, cho phép hostname `vanduy.store`, `vanduy-software.magicmole1.chatgpt.site`, và `127.0.0.1`/`localhost` nếu chạy local. Bản Python static preview không có endpoint cấu hình widget; dùng `node scripts/build.mjs` rồi `node scripts/preview.mjs`.
+
+Turnstile hạn chế bot; rate limit và giới hạn gửi trùng vẫn là các lớp bảo vệ riêng chưa triển khai.

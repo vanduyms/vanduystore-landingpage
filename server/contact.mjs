@@ -14,6 +14,17 @@ export async function handleContact(request, env, send = fetch) {
   if(website) return respond(400,'invalid');
   if(!Object.hasOwn(interests,interest) || typeof email!=='string' || email.length>254 || !/^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/.test(email) || typeof idea!=='string' || !idea.trim() || idea.length>2000) return respond(400,'invalid');
   if(!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID || !env.EMAIL_FROM) return respond(503,'unconfigured');
+  if (!env.TURNSTILE_SECRET_KEY) return respond(503,'verification_unavailable');
+  if (typeof data.turnstileToken !== 'string' || !data.turnstileToken || data.turnstileToken.length>2048) return respond(400,'verification_required');
+  try {
+    const verification=await send('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(8000),
+      body:JSON.stringify({secret:env.TURNSTILE_SECRET_KEY,response:data.turnstileToken})
+    });
+    if (!verification.ok) return respond(503,'verification_unavailable');
+    const proof=await verification.json();
+    if (proof.success!==true || proof.hostname!==new URL(request.url).hostname || proof.action!=='contact') return respond(400,'verification_failed');
+  } catch { return respond(503,'verification_unavailable'); }
   try {
     const response = await send(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/email/sending/send`,{
       method:'POST',headers:{Authorization:`Bearer ${env.CLOUDFLARE_API_TOKEN}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(12000),

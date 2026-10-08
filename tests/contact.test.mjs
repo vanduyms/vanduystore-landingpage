@@ -1,8 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {handleContact} from '../server/contact.mjs';
+import {handleContact as rawContact} from '../server/contact.mjs';
+const handleContact=(request,config,send=fetch)=>rawContact(request,{...config,TURNSTILE_SECRET_KEY:'test-secret'},async(url,options)=>String(url).includes('/siteverify')?Response.json({success:true,hostname:'vanduy.store',action:'contact'}):send(url,options));
 const env={CLOUDFLARE_ACCOUNT_ID:'account',CLOUDFLARE_API_TOKEN:'secret',EMAIL_FROM:'forms@vanduy.store'};
-const data={interest:'web',idea:'Build a website',email:'customer@example.com',website:''};
+const data={interest:'web',idea:'Build a website',email:'customer@example.com',website:'',turnstileToken:'valid-token'};
 const req=(body=data,origin='https://vanduy.store')=>new Request('https://vanduy.store/api/contact',{method:'POST',headers:{'content-type':'application/json',origin},body:JSON.stringify(body)});
 test('rejects cross origin',async()=>{assert.equal((await handleContact(req(data,'https://other.example'),env)).status,403)});
 test('rejects bad email and empty idea',async()=>{for(const d of [{...data,email:'invalid'},{...data,idea:' '},{...data,interest:'bogus'}]) assert.equal((await handleContact(req(d),env)).status,400)});
@@ -15,3 +16,8 @@ test('does not discard a received inquiry if confirmation fails',async()=>{let c
 test('never sends confirmation after admin rejection',async()=>{let count=0;await handleContact(req(),env,async()=>{count++;return Response.json({success:false},{status:502})});assert.equal(count,1)});
 test('escapes customer text in HTML and keeps English templates in English',async()=>{const sent=[];await handleContact(req({...data,language:'en',idea:'<img src=x onerror=alert(1)> & notes'}),env,async(_url,options)=>{const body=JSON.parse(options.body);sent.push(body);return Response.json({success:true,result:{queued:[body.to]}})});assert.equal(sent.length,2);assert.ok(sent[1].html.includes('We received your inquiry'));assert.ok(sent[1].html.includes('&lt;img'));assert.ok(!sent[1].html.includes('<img src=x'));assert.ok(sent[1].text.includes('<img src=x'))});
 test('email headings do not force a line break',async()=>{const sent=[];await handleContact(req({...data,language:'vi'}),env,async(_url,options)=>{const body=JSON.parse(options.body);sent.push(body);return Response.json({success:true,result:{queued:[body.to]}})});const heading=sent[1].html.match(/<h1[^>]*>(.*?)<\/h1>/s)[1];assert.equal(heading,'Đã nhận được yêu cầu của bạn.');assert.ok(!heading.includes('<br>'))});
+
+test('missing token rejects before any email',async()=>{let calls=0;const r=await rawContact(req({...data,turnstileToken:''}),{...env,TURNSTILE_SECRET_KEY:'secret'},async()=>{calls++;throw Error('must not call')});assert.equal(r.status,400);assert.equal(calls,0)});
+test('missing Turnstile secret fails closed',async()=>{let calls=0;const r=await rawContact(req(),env,async()=>{calls++});assert.equal(r.status,503);assert.equal(calls,0)});
+test('invalid, replayed, wrong hostname and action tokens never send email',async()=>{for(const verification of [{success:false,'error-codes':['timeout-or-duplicate']},{success:true,hostname:'other.example',action:'contact'},{success:true,hostname:'vanduy.store',action:'other'}]){let calls=0;const r=await rawContact(req(),{...env,TURNSTILE_SECRET_KEY:'secret'},async(url)=>{calls++;assert.ok(url.includes('/siteverify'));return Response.json(verification)});assert.equal(r.status,400);assert.equal(calls,1)}});
+test('verification network errors fail closed',async()=>{const r=await rawContact(req(),{...env,TURNSTILE_SECRET_KEY:'secret'},async()=>{throw Error('network')});assert.equal(r.status,503)});
