@@ -372,7 +372,10 @@
               <option value="other" data-i18n="interestOther">
                 Cùng khám phá ý tưởng
               </option></select
-            ><label for="idea" data-i18n="ideaLabel">Ý tưởng của bạn</label
+            ><label for="reply-email" data-i18n="replyEmail">Email để nhận phản hồi</label>
+<input id="reply-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
+<div class="form-honeypot" aria-hidden="true"><label for="website-field">Website</label><input id="website-field" name="website" tabindex="-1" autocomplete="off"></div>
+<label for="idea" data-i18n="ideaLabel">Ý tưởng của bạn</label
             ><textarea
               id="idea"
               name="idea"
@@ -385,13 +388,10 @@
               type="submit"
               class="button contact-button"
               data-i18n="send"
-            >
-              Soạn email tư vấn
-            </button>
-            <p class="form-note" data-i18n="formNote">
-              Mở ứng dụng email với nội dung bạn vừa nhập.
-            </p>
-            <p class="privacy-note" data-i18n="privacyNote">Nội dung chỉ được gửi khi bạn gửi email. Không có dữ liệu tư vấn lưu trên website.</p>
+            >Gửi yêu cầu tư vấn</button>
+            <p class="form-note" data-i18n="formNote">Gửi trực tiếp đến admin@vanduy.store.</p>
+            <p class="privacy-note" data-i18n="privacyNote">Thông tin được dùng để tiếp nhận và phản hồi yêu cầu tư vấn.</p>
+<a class="email-fallback" href="mailto:admin@vanduy.store" id="email-fallback" hidden data-i18n="emailFallback">Gửi bằng ứng dụng email</a>
 <p id="form-status" role="status" hidden></p>
             <button
               type="button"

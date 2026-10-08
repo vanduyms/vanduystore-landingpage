@@ -1444,3 +1444,12 @@ h2 {
     outline-offset: 2px;
   }
 }
+
+.contact-panel input[type="email"]{border:1px solid #6283f0;background:#ffffff12;color:white;border-radius:8px;padding:11px 13px;font-size:14px;min-height:46px;width:100%;transition:border-color .15s ease,box-shadow .15s ease}
+.contact-panel input[type="email"]::placeholder{color:#bdceff}
+.contact-panel input[type="email"]:focus{outline:none;border-color:#d7e2ff;box-shadow:0 0 0 2px rgb(255 255 255 / 12%)}
+.form-honeypot{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.email-fallback{font-size:13px;color:white;text-decoration:underline;text-underline-offset:4px}
+.contact-button:disabled{opacity:.75;cursor:wait;transform:none}
+@media(forced-colors:active){.contact-panel input[type="email"]:focus{outline:2px solid Highlight;outline-offset:2px}}
+@media(prefers-reduced-motion:reduce){.contact-panel input[type="email"]{transition:none}}

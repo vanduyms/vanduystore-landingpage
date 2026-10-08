@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {handleContact} from '../server/contact.mjs';
+const env={CLOUDFLARE_ACCOUNT_ID:'account',CLOUDFLARE_API_TOKEN:'secret',EMAIL_FROM:'forms@vanduy.store'};
+const data={interest:'web',idea:'Build a website',email:'customer@example.com',website:''};
+const req=(body=data,origin='https://vanduy.store')=>new Request('https://vanduy.store/api/contact',{method:'POST',headers:{'content-type':'application/json',origin},body:JSON.stringify(body)});
+test('rejects cross origin',async()=>{assert.equal((await handleContact(req(data,'https://other.example'),env)).status,403)});
+test('rejects bad email and empty idea',async()=>{for(const d of [{...data,email:'invalid'},{...data,idea:' '},{...data,interest:'bogus'}]) assert.equal((await handleContact(req(d),env)).status,400)});
+test('does not claim success without configuration',async()=>{assert.equal((await handleContact(req(),{})).status,503)});
+test('honeypot rejects bots without sending',async()=>{let called=false;const res=await handleContact(req({...data,website:'spam'}),env,async()=>{called=true});assert.equal(res.status,400);assert.equal(called,false)});
+test('fixed recipient, reply-to, queued delivery',async()=>{const res=await handleContact(req({...data,to:'attacker@example.com'}),env,async(url,options)=>{assert.match(url,/accounts\/account\/email\/sending\/send$/);const body=JSON.parse(options.body);assert.equal(body.to,'admin@vanduy.store');assert.equal(body.headers['Reply-To'],'customer@example.com');assert.ok(body.text.includes('Build a website'));return Response.json({success:true,result:{delivered:[],queued:['admin@vanduy.store'],permanent_bounces:[]}})});assert.equal(res.status,200)});
+test('provider errors and bounces do not return success',async()=>{for(const result of [{success:false},{success:true,result:{delivered:[],queued:[],permanent_bounces:['admin@vanduy.store']}}]){const res=await handleContact(req(),env,async()=>Response.json(result));assert.equal(res.status,502)}});

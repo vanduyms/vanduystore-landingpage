@@ -17,6 +17,27 @@ Mở http://localhost:8080. Có thể dùng bất kỳ static hosting nào với
 - `dist/styles.css`: màu sắc, typography và responsive.
 - `dist/app.js`: nội dung tiếng Anh, chuyển ngôn ngữ, demo và form tư vấn.
 
-Ngôn ngữ mặc định là tiếng Việt; lựa chọn được lưu trên trình duyệt. Demo sử dụng dữ liệu minh họa, không kết nối dịch vụ thật. Form mở ứng dụng email tới `admin@vanduy.store`, không gửi email từ server. Chưa có thanh toán hay bán sản phẩm tự động.
+Ngôn ngữ mặc định là tiếng Việt; lựa chọn được lưu trên trình duyệt. Demo sử dụng dữ liệu minh họa, không kết nối dịch vụ thật. Form gửi qua endpoint server tới `admin@vanduy.store` khi Cloudflare Email Sending được cấu hình; có ứng dụng email làm phương án dự phòng. Chưa có thanh toán hay bán sản phẩm tự động.
 
 Font Google Fonts có fallback sans-serif nếu không tải được. Sites preview là bản private; domain vanduy.store chưa được kết nối DNS.
+
+## Gửi email trực tiếp qua Cloudflare
+
+Form đã có endpoint server `POST /api/contact` sử dụng Cloudflare Email Sending REST API. Địa chỉ nhận cố định là `admin@vanduy.store`; email khách được đặt trong `Reply-To`. Không lưu nội dung tư vấn vào database. Chỉ báo tiếp nhận khi provider trả về delivered/queued cho đúng người nhận.
+
+Đặt cấu hình vào `.env.local` (đã được gitignore), theo `.env.example`:
+
+- `CLOUDFLARE_API_TOKEN`: token có quyền gửi email.
+- `CLOUDFLARE_ACCOUNT_ID`: account chứa domain gửi.
+- `EMAIL_FROM`: địa chỉ gửi thuộc domain đã được onboard trong Cloudflare Email Service.
+
+Cấu hình local không tự áp dụng lên bản hosted: cần đưa các biến này vào runtime secrets của Sites rồi deploy lại. Không đưa token vào `dist`, HTML hoặc JavaScript trình duyệt.
+
+```sh
+node scripts/build.mjs
+node scripts/preview.mjs
+```
+
+Mở http://127.0.0.1:8081. Python static preview ở trên vẫn xem được giao diện nhưng không chạy API gửi email. Nếu thiếu cấu hình hoặc provider báo lỗi, form giữ nguyên nội dung và cung cấp nút gửi bằng ứng dụng email. Email Routing token không nhất thiết có quyền Email Sending.
+
+Kiểm tra backend: `node tests/contact.test.mjs`. Các test dùng provider giả lập, không gửi email thật. Khi public site, cấu hình chống spam/rate limit tại Cloudflare cho `/api/contact`; kiểm tra Origin và honeypot hiện tại không thay thế giới hạn gửi ở edge.

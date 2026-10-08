@@ -126,6 +126,7 @@ Object.assign(translations.en, {
   "footerContactNote": "For inquiries, delivery and support.",
   "footerLanguage": "Vietnamese / English"
 });
+Object.assign(translations.en, {"send": "Send inquiry", "formNote": "Send directly to admin@vanduy.store.", "privacyNote": "Your details are used to receive and respond to your inquiry.", "replyEmail": "Your email address", "emailFallback": "Send using your email app"});
 const vietnamese = Object.fromEntries(
   [...document.querySelectorAll("[data-i18n]")].map((el) => [
     el.dataset.i18n,
@@ -135,6 +136,7 @@ const vietnamese = Object.fromEntries(
 let language = "vi",
   demo = "ai",
   timer;
+let sending = false;
 const $ = (s) => document.querySelector(s);
 const t = (vi, en) => (language === "vi" ? vi : en);
 function setLanguage(next) {
@@ -171,6 +173,7 @@ function setLanguage(next) {
     localStorage.setItem("vanduy-language", next);
   } catch {}
   $("#form-status").hidden = true;
+  if (sending) $("#contact-form button[type=submit]").textContent = t("Đang gửi…", "Sending…");
   renderDemo();
 }
 function renderDemo() {
@@ -287,28 +290,42 @@ document.querySelectorAll("[data-solution]").forEach((el) =>
   }),
 );
 function inquiry() {
-  return `${t("Xin chào vanduy.store,", "Hi vanduy.store,")}\n\n${t("Mình quan tâm đến", "I’m interested in")}: ${$("#interest").selectedOptions[0].textContent}\n\n${$("#idea").value.trim()}\n\n${t("Mong nhận được tư vấn về phạm vi, chi phí và thời gian triển khai.", "Please advise on scope, costs and timeline.")}`;
+  return `${t("Xin chào vanduy.store,", "Hi vanduy.store,")}\n\n${t("Mình quan tâm đến", "I’m interested in")}: ${$("#interest").selectedOptions[0].textContent}\n\n${$("#idea").value.trim()}\n\n${t("Email phản hồi", "Reply email")}: ${$("#reply-email").value.trim()}\n\n${t("Mong nhận được tư vấn về phạm vi, chi phí và thời gian triển khai.", "Please advise on scope, costs and timeline.")}`;
 }
-$("#contact-form").addEventListener("submit", (event) => {
+$("#contact-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (sending) return;
   if (!$("#idea").value.trim()) {
-    $("#idea").setCustomValidity(
-      t("Hãy nhập ý tưởng của bạn.", "Please enter your idea."),
-    );
-    $("#idea").reportValidity();
-    return;
+    $("#idea").setCustomValidity(t("Hãy nhập ý tưởng của bạn.", "Please enter your idea."));
+    $("#idea").reportValidity(); return;
   }
-  const subject =
-    t("Tư vấn giải pháp", "Solution inquiry") +
-    " — " +
-    $("#interest").selectedOptions[0].textContent;
-  window.location.href = `mailto:admin@vanduy.store?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(inquiry())}`;
+  sending = true;
+  const button = $("#contact-form button[type=submit]");
+  button.disabled = true;
+  button.textContent = t("Đang gửi…", "Sending…");
+  $("#contact-form").setAttribute("aria-busy", "true");
   $("#form-status").hidden = false;
-  $("#form-status").textContent = t(
-    "Chưa mở được email? Sao chép nội dung và gửi đến admin@vanduy.store.",
-    "Email didn’t open? Copy your inquiry and send it to admin@vanduy.store.",
-  );
-  $("#copy-request").hidden = false;
+  $("#form-status").textContent = t("Đang gửi yêu cầu…", "Sending your inquiry…");
+  $("#copy-request").hidden = true;
+  $("#email-fallback").hidden = true;
+  const body = { interest: $("#interest").value, email: $("#reply-email").value.trim(), idea: $("#idea").value.trim(), website: $("#website-field").value };
+  const fallback = `mailto:admin@vanduy.store?subject=${encodeURIComponent("Website inquiry")}&body=${encodeURIComponent(inquiry())}`;
+  try {
+    const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(18000) });
+    const result = await response.json();
+    if (!response.ok || result.ok !== true) throw new Error("delivery_failed");
+    $("#form-status").textContent = t("Yêu cầu đã được tiếp nhận để gửi đến Vanduy. Cảm ơn bạn!", "Your inquiry has been accepted for delivery to Vanduy. Thank you!");
+    $("#contact-form").reset();
+  } catch {
+    $("#form-status").textContent = t("Chưa gửi được. Bạn có thể thử lại hoặc gửi bằng ứng dụng email.", "Couldn’t send. Try again or use your email app.");
+    $("#email-fallback").href = fallback;
+    $("#email-fallback").hidden = false;
+    $("#copy-request").hidden = false;
+  } finally {
+    sending = false; button.disabled = false;
+    button.textContent = t("Gửi yêu cầu tư vấn", "Send inquiry");
+    $("#contact-form").setAttribute("aria-busy", "false");
+  }
 });
 $("#idea").addEventListener("input", () => {
   $("#idea").setCustomValidity("");
