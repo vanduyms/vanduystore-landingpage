@@ -4,3 +4,7 @@
 node_modules/
 .sites-runtime/
 .playwright-cli/
+.env *
+.dev.vars
+.dev.vars.*
+.wrangler/

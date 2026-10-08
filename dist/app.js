@@ -302,6 +302,8 @@ $("#contact-form").addEventListener("submit", async (event) => {
     $("#idea").reportValidity(); return;
   }
   sending = true;
+  const lockedControls = [...document.querySelectorAll("#contact-form input, #contact-form select, #contact-form textarea, [data-lang]")].map(el => ({el, disabled: el.disabled}));
+  lockedControls.forEach(({el}) => {el.disabled = true;});
   const button = $("#contact-form button[type=submit]");
   button.disabled = true;
   button.textContent = t("Đang gửi…", "Sending…");
@@ -315,17 +317,20 @@ $("#contact-form").addEventListener("submit", async (event) => {
   try {
     const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(40000) });
     const result = await response.json();
-    if (!response.ok || result.ok !== true) throw new Error("delivery_failed");
+    if (!response.ok || result.ok !== true) throw new Error(result.code || "delivery_failed");
     $("#form-status").textContent = result.confirmationSent
       ? t("Đã tiếp nhận yêu cầu. Email xác nhận đang được gửi đến bạn.", "Inquiry received. A confirmation email is on its way.")
       : t("Đã tiếp nhận yêu cầu. Email xác nhận chưa gửi được; bạn không cần gửi lại yêu cầu.", "Inquiry received. The confirmation email could not be sent; no need to submit again.");
     $("#contact-form").reset();
-  } catch {
-    $("#form-status").textContent = t("Chưa gửi được. Bạn có thể thử lại hoặc gửi bằng ứng dụng email.", "Couldn’t send. Try again or use your email app.");
+  } catch (error) {
+    $("#form-status").textContent = ["verification_required", "verification_failed", "verification_unavailable"].includes(error.message)
+      ? t("Chưa xác minh được. Hãy xác minh lại rồi gửi, hoặc liên hệ qua email.", "Verification failed. Verify again before sending, or contact us by email.")
+      : t("Chưa gửi được. Bạn có thể thử lại hoặc gửi bằng ứng dụng email.", "Couldn’t send. Try again or use your email app.");
     $("#email-fallback").href = fallback;
     $("#email-fallback").hidden = false;
     $("#copy-request").hidden = false;
   } finally {
+    lockedControls.forEach(({el, disabled}) => {el.disabled = disabled;});
     sending = false; window.vanduyVerification?.reset(); button.disabled = true;
     button.textContent = t("Gửi yêu cầu tư vấn", "Send inquiry");
     $("#contact-form").setAttribute("aria-busy", "false");

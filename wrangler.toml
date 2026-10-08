@@ -1,0 +1,11 @@
+name = "vanduy-store"
+main = "dist/server/index.js"
+compatibility_date = "2026-10-08"
+workers_dev = true
+
+[build]
+command = "node scripts/build.mjs"
+
+# Set the five runtime values in Workers Settings > Variables and Secrets.
+# Do not paste secrets into this file.
+# After confirming the workers.dev deployment, attach vanduy.store as a Custom Domain.

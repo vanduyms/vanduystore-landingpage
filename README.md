@@ -1,55 +1,76 @@
 # vanduy.store
 
-Landing page giới thiệu AI & tự động hóa, website và phần mềm quản lý. HTML/CSS/JavaScript thuần, không cần cài thư viện hay build.
+Landing page Việt/Anh cho AI, tự động hóa, website và phần mềm quản lý. Giao diện HTML/CSS/JS thuần; form gửi email và Turnstile chạy trên Cloudflare Worker. Không có checkout hoặc thanh toán.
 
-## Chạy local
+## Chạy local đầy đủ
 
-```sh
-cd vanduystore-landingpage
-python3 -m http.server 8080 --directory dist
+Yêu cầu Node.js 22.16+ hoặc Node.js 24. Tạo `.env.local` theo `.env.example`:
+
+```env
+CLOUDFLARE_API_TOKEN=token_co_quyen_Email_Sending
+CLOUDFLARE_ACCOUNT_ID=account_id
+EMAIL_FROM=dia_chi_gui_da_xac_thuc
+TURNSTILE_SITE_KEY=public_site_key
+TURNSTILE_SECRET_KEY=private_secret_key
 ```
-
-Mở http://localhost:8080. Có thể dùng bất kỳ static hosting nào với thư mục `dist`.
-
-## Chỉnh sửa
-
-- `dist/index.html`: nội dung tiếng Việt, cấu trúc trang, email liên hệ.
-- `dist/styles.css`: màu sắc, typography và responsive.
-- `dist/app.js`: nội dung tiếng Anh, chuyển ngôn ngữ, demo và form tư vấn.
-
-Ngôn ngữ mặc định là tiếng Việt; lựa chọn được lưu trên trình duyệt. Demo sử dụng dữ liệu minh họa, không kết nối dịch vụ thật. Form gửi qua endpoint server tới `admin@vanduy.store` khi Cloudflare Email Sending được cấu hình; có ứng dụng email làm phương án dự phòng. Chưa có thanh toán hay bán sản phẩm tự động.
-
-Font Google Fonts có fallback sans-serif nếu không tải được. Sites preview là bản private; domain vanduy.store chưa được kết nối DNS.
-
-## Gửi email trực tiếp qua Cloudflare
-
-Form đã có endpoint server `POST /api/contact` sử dụng Cloudflare Email Sending REST API. Địa chỉ nhận cố định là `admin@vanduy.store`; email khách được đặt trong `Reply-To`. Không lưu nội dung tư vấn vào database. Chỉ báo tiếp nhận khi provider trả về delivered/queued cho đúng người nhận.
-
-Đặt cấu hình vào `.env.local` (đã được gitignore), theo `.env.example`:
-
-- `CLOUDFLARE_API_TOKEN`: token có quyền gửi email.
-- `CLOUDFLARE_ACCOUNT_ID`: account chứa domain gửi.
-- `EMAIL_FROM`: địa chỉ gửi thuộc domain đã được onboard trong Cloudflare Email Service.
-
-Cấu hình local không tự áp dụng lên bản hosted: cần đưa các biến này vào runtime secrets của Sites rồi deploy lại. Không đưa token vào `dist`, HTML hoặc JavaScript trình duyệt.
 
 ```sh
 node scripts/build.mjs
 node scripts/preview.mjs
 ```
 
-Mở http://127.0.0.1:8081. Python static preview ở trên vẫn xem được giao diện nhưng không chạy API gửi email. Nếu thiếu cấu hình hoặc provider báo lỗi, form giữ nguyên nội dung và cung cấp nút gửi bằng ứng dụng email. Email Routing token không nhất thiết có quyền Email Sending.
+Mở http://127.0.0.1:8081. Sau khi sửa code hoặc `.env.local`, dừng server, build và chạy lại. Server local nạp cấu hình lúc khởi động. Xem bằng Python/static hosting không chạy API form hoặc endpoint cấu hình Turnstile.
 
-Kiểm tra backend: `node tests/contact.test.mjs`. Các test dùng provider giả lập, không gửi email thật. Khi public site, cấu hình chống spam/rate limit tại Cloudflare cho `/api/contact`; kiểm tra Origin và honeypot hiện tại không thay thế giới hạn gửi ở edge.
+## Kiểm tra trước deploy
 
-## Mẫu email
+```sh
+node tests/contact.test.mjs
+node tests/build.test.mjs
+node --check dist/app.js
+node --check dist/turnstile.js
+```
 
-`server/email-templates.mjs` chứa mẫu HTML dạng bảng với CSS inline và bản text thuần, dành cho email thông báo admin và xác nhận khách. Xem mẫu tại `output/emails/`. Khách nhận mẫu Việt/Anh theo ngôn ngữ chọn trên website; email xác nhận chỉ gửi sau khi email admin được provider tiếp nhận. Nếu xác nhận thất bại, không yêu cầu gửi lại form để tránh trùng yêu cầu. Các phần nhập từ khách được escape trước khi đưa vào HTML. Không cam kết thời gian phản hồi trong email.
+Test không gửi email thật; provider và kết quả Turnstile được giả lập. Test build import trực tiếp Worker đã tạo và kiểm tra các route/asset. Kiểm tra thủ công luồng Turnstile thật và gửi form trên hostname triển khai sau khi cấu hình secrets.
 
-## Turnstile
+## Deploy Cloudflare Workers
 
-Thêm `TURNSTILE_SITE_KEY` và `TURNSTILE_SECRET_KEY` trong `.env.local`, và runtime của Sites. Site key là công khai; secret chỉ nằm ở server. Widget dùng action `contact`; endpoint xác minh qua Cloudflare Siteverify và kiểm tra hostname/action trước khi gửi cả hai email. Không có chế độ bỏ qua nếu thiếu secret hoặc dịch vụ xác minh lỗi. Token được reset sau mỗi lần gửi, khi hết hạn và khi đổi ngôn ngữ.
+`wrangler.toml` đã trỏ tới Worker entrypoint. Chạy từ thư mục dự án:
 
-Trong Cloudflare Turnstile, cho phép hostname `vanduy.store`, `vanduy-software.magicmole1.chatgpt.site`, và `127.0.0.1`/`localhost` nếu chạy local. Bản Python static preview không có endpoint cấu hình widget; dùng `node scripts/build.mjs` rồi `node scripts/preview.mjs`.
+```sh
+npx wrangler@4 login
+npx wrangler@4 deploy --dry-run
+npx wrangler@4 deploy
+```
 
-Turnstile hạn chế bot; rate limit và giới hạn gửi trùng vẫn là các lớp bảo vệ riêng chưa triển khai.
+Đăng nhập bằng tài khoản có quyền deploy Workers. Token dùng để gửi email trong `.env.local` không nhất thiết có quyền deploy Worker.
+
+Trong Cloudflare Dashboard → Workers & Pages → `vanduy-store` → Settings → Variables and Secrets, thêm cả năm biến ở trên. Đặt `CLOUDFLARE_API_TOKEN` và `TURNSTILE_SECRET_KEY` là Secret. Site key là công khai; các giá trị còn lại cũng có thể lưu dưới dạng Secret. `.env.local` không tự trở thành runtime secrets khi deploy. Apply/deploy thay đổi runtime rồi kiểm tra form.
+
+Trong Turnstile widget, cho phép đúng hostname triển khai (hostname `workers.dev` được Cloudflare cấp, `vanduy.store`, và `127.0.0.1`/`localhost` nếu thử local). Backend kiểm tra cả hostname và action `contact`; không dùng wildcard, không thêm protocol/path vào danh sách hostname.
+
+Sau khi xác minh form trên workers.dev, thêm Custom Domain `vanduy.store` trong Settings → Domains & Routes. Nếu domain đang phục vụ website khác, kiểm tra cấu hình trước khi chuyển.
+
+## Bản Sites hiện tại
+
+`.openai/hosting.json` giữ identity của bản preview Sites. Secrets của Sites và của Worker bạn tự deploy là hai cấu hình độc lập. Bản Sites hiện tại riêng tư; việc sửa code local không tự cập nhật bản online.
+
+## Chỉnh sửa
+
+- `dist/index.html`: cấu trúc và nội dung Việt.
+- `dist/styles.css`: giao diện và responsive.
+- `dist/app.js`: bản Anh, demo, ngôn ngữ và form.
+- `dist/turnstile.js`: widget, trạng thái và reset xác minh.
+- `server/contact.mjs`: kiểm tra request, Turnstile và gửi email.
+- `server/email-templates.mjs`: mẫu HTML/text cho admin và khách.
+- `scripts/build.mjs`: sao chép module server, tạo entrypoint và đóng gói các asset công khai.
+- `output/emails/`: mẫu email để xem trước, không phải nội dung gửi thật.
+
+`dist/server/` là output tạo lại khi build: chỉnh source ở `server/`, không sửa output. Font Google Fonts có fallback sans-serif; ngôn ngữ chọn được lưu trong trình duyệt.
+
+## Email và chống spam
+
+Email thông báo luôn gửi đến `admin@vanduy.store`, email khách ở `reply_to`. Email xác nhận chỉ gửi sau khi Cloudflare tiếp nhận email admin; xác nhận lỗi không làm mất yêu cầu đã nhận. Không lưu tư vấn trong database. Trạng thái thành công là provider đã tiếp nhận/đưa vào hàng đợi, không xác nhận thư đã tới Inbox.
+
+Turnstile được xác minh phía server; thiếu secret, token sai/hết hạn/dùng lại, sai hostname/action đều không gửi email. Có honeypot, kiểm tra Origin, kiểm tra dữ liệu và giới hạn request 12 KB. Secret không đưa vào trang web hay build.
+
+Chưa có rate limit hoặc kho chống gửi trùng bền vững. Turnstile giảm bot nhưng không giới hạn người đã xác minh gửi nhiều lần. Trước khi public, cấu hình rate limit cho `POST /api/contact` ở Cloudflare theo gói tài khoản. Khi lỗi, khách có thể dùng email trực tiếp trên trang.
